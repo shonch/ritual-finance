@@ -1,7 +1,7 @@
 
 # prompts/emotion_tag_prompt.py
 
-from supabase_client import select_rows, insert_row
+from utils.supabase_client import select_rows, insert_row
 from utils.uuid_generator import generate_uuid
 
 def select_emotion_tag(user_id):

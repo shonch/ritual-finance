@@ -9,6 +9,9 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "your-anon-or-service-role-key")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+def get_supabase_client():
+    return supabase
+
 def get_table(table_name):
     return supabase.table(table_name)
 

@@ -2,41 +2,67 @@
 # models/transaction.py
 
 from datetime import datetime
-from supabase_client import insert_row
+from utils.supabase_client import insert_row
 from prompts.emotion_tag_prompt import select_emotion_tag
 from prompts.symbolic_time_prompt import select_symbolic_time
 from utils.uuid_generator import generate_uuid
 
-def log_transaction(user_id, entry_type):
-    try:
-        amount = float(input("💸 Amount: "))
-    except ValueError:
-        print("⚠️ Invalid amount. Try again.")
-        return
+from utils.supabase_client import get_supabase_client, select_rows, insert_row
+from utils.uuid_generator import generate_uuid
+from datetime import date
 
-    category = input("📂 Category (e.g. Lyft, Groceries, Studio Rent): ")
-    source = input("🔗 Source (e.g. Lyft, Venmo, Cash): ")
-    symbolic_time = select_symbolic_time()
-    emotion_tag_id = select_emotion_tag(user_id)
+def log_transaction(user_id, transaction_type):
+    supabase = get_supabase_client()
 
-    description = input("📝 Symbolic Note (e.g. 'Paid this to honor a promise'): ")
-    due_date_input = input("📅 Due Date (YYYY-MM-DD, optional): ")
+    print(f"\n🧾 Logging a {transaction_type} transaction")
+
+    amount = float(input("Enter amount: ").strip())
+    category = input("Enter category (e.g. rent, groceries, Lyft): ").strip()
+    description = input("Enter description (optional): ").strip() or "No description"
+    source = input("Enter source (e.g. employer, Lyft, Venmo): ").strip()
+    due_date_input = input("Enter due date (optional, YYYY-MM-DD): ").strip()
     due_date = due_date_input if due_date_input else None
-    emotional_weight = input("⚖️ Emotional Weight (low, medium, high): ")
+    emotional_weight = input("Enter emotional weight (low, medium, high): ").strip().lower()
+
+    # 🧠 Suggest mode based on past transactions
+    similar_entries = select_rows("transactions", {
+        "user_id": user_id,
+        "source": source,
+        "category": category
+    }).data
+
+    flow_count = sum(1 for t in similar_entries if t.get("mode") == "flow")
+    structured_count = sum(1 for t in similar_entries if t.get("mode") == "structured")
+
+    if flow_count > structured_count:
+        suggested_mode = "flow"
+    elif structured_count > flow_count:
+        suggested_mode = "structured"
+    else:
+        suggested_mode = None
+
+    if suggested_mode:
+        print(f"\n🧭 Based on past entries, this looks like a {suggested_mode} transaction.")
+        override = input("Would you like to change it? (y/N): ").strip().lower()
+        mode = input("Enter 'flow' or 'structured': ").strip().lower() if override == "y" else suggested_mode
+    else:
+        mode = input("No clear pattern found. Enter 'flow' or 'structured': ").strip().lower()
 
     transaction = {
         "transaction_id": generate_uuid(),
         "user_id": user_id,
         "amount": amount,
-        "type": entry_type.lower(),
+        "type": transaction_type,
         "category": category,
-        "date": datetime.now().isoformat(),
+        "date": str(date.today()),
         "description": description,
-        "tags": "",  # Optional: comma-separated emotional tags
+        "tags": "",  # You can add emotional tags later
         "source": source,
         "due_date": due_date,
-        "emotional_weight": emotional_weight
+        "emotional_weight": emotional_weight,
+        "reconciliation_id": None,
+        "mode": mode
     }
 
-    insert_row("transactions", transaction)
-    print(f"\n✅ Logged {entry_type}: ${amount:.2f} — {category} ({symbolic_time})")
+    insert_response = insert_row("transactions", transaction)
+    return f"Transaction logged with ID {transaction['transaction_id']}"

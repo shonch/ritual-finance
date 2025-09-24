@@ -14,4 +14,4 @@ def select_symbolic_time():
         print(f"{key}. {label}")
 
     choice = input("Enter number: ")
-    return options.get(choice, "🌫️ Undefined")`
+    return options.get(choice, "🌫️ Undefined")
