@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+from rituals.core.arc_simulator import simulate_payoff_arc
+
 from models.user import add_user, user_exists, get_user
 from rituals.reconciliation import perform_reckoning
 from models.transaction import log_transaction
@@ -38,10 +40,6 @@ def prompt_for_user():
     return user_id
 
 
-print("\n🧭 You are in Hybrid Mode — structure and flow are both honored.")
-
-
-
 def run_hybrid_mode(user_id):
     while True:
         print("\n🌀 Hybrid Mode Menu:")
@@ -50,7 +48,8 @@ def run_hybrid_mode(user_id):
         print("3. Log Symbolic Payment")
         print("4. Setup Rituals 🛠️")
         print("5. Perform Reckoning 🔮")
-        print("6. Exit Valhalla")
+        print("6. Simulate Payoff Arc 📈")
+        print("7. Exit Valhalla")
 
         choice = input("Choose an option: ").strip()
 
@@ -68,6 +67,9 @@ def run_hybrid_mode(user_id):
         elif choice == "5":
             perform_reckoning(user_id)
         elif choice == "6":
+            setup_id = input("Enter setup_id for the debt item: ").strip()
+            simulate_payoff_arc(setup_id)
+        elif choice == "7":
             print("🌌 Exiting Valhalla. May your legacy echo.")
             break
         else:
@@ -80,6 +82,7 @@ def main():
     user_id = prompt_for_user()
     print("\n🧭 You are in Hybrid Mode — structure and flow are both honored.")
     run_hybrid_mode(user_id)
+
 
 if __name__ == "__main__":
     main()
