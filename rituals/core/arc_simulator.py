@@ -1,6 +1,6 @@
 # rituals/core/arc_simulator.py
 
-from utils.supabase_client import get_supabase_client
+from utils.mongo_client import get_mongo_client
 from datetime import datetime, timedelta
 import math
 

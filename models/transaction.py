@@ -2,17 +2,16 @@
 # models/transaction.py
 
 from datetime import datetime
-from utils.supabase_client import insert_row
+
 from prompts.emotion_tag_prompt import select_emotion_tag
 from prompts.symbolic_time_prompt import select_symbolic_time
 from utils.uuid_generator import generate_uuid
 
-from utils.supabase_client import get_supabase_client, select_rows, insert_row
+from utils.mongo_client import select_rows, insert_row
 from utils.uuid_generator import generate_uuid
 from datetime import date
 
 def log_transaction(user_id, transaction_type):
-    supabase = get_supabase_client()
 
     print(f"\n🧾 Logging a {transaction_type} transaction")
 
@@ -26,11 +25,10 @@ def log_transaction(user_id, transaction_type):
 
     # 🧠 Suggest mode based on past transactions
     similar_entries = select_rows("transactions", {
-        "user_id": user_id,
-        "source": source,
-        "category": category
-    }).data
-
+    "user_id": user_id,
+    "source": source,
+    "category": category
+    })
     flow_count = sum(1 for t in similar_entries if t.get("mode") == "flow")
     structured_count = sum(1 for t in similar_entries if t.get("mode") == "structured")
 
@@ -64,5 +62,5 @@ def log_transaction(user_id, transaction_type):
         "mode": mode
     }
 
-    insert_response = insert_row("transactions", transaction)
+    result = insert_row("transactions", transaction)
     return f"Transaction logged with ID {transaction['transaction_id']}"

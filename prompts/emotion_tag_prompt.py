@@ -1,13 +1,12 @@
 
 # prompts/emotion_tag_prompt.py
 
-from utils.supabase_client import select_rows, insert_row
+from utils.mongo_client import select_rows, insert_row
 from utils.uuid_generator import generate_uuid
 
 def select_emotion_tag(user_id):
-    response = select_rows("emotion_tags", {"user_id": user_id})
-    tags = response.data
 
+    tags = select_rows("emotion_tags", {"user_id": user_id})
     print("\n🧠 Choose an Emotion Tag:")
     for i, tag in enumerate(tags):
         emoji = tag.get("emoji", "")

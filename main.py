@@ -8,8 +8,8 @@ from rituals.reconciliation import perform_reckoning
 from models.transaction import log_transaction
 from inspiration.quotes import fetch_quote
 from rituals.core.setup import run_setup_module  # new module for setup rituals
-# from rituals.batch_log import batch_log  # future module
-# from review.summary import generate_emotional_summary  # future emotional review
+
+
 
 # 💡 You can exit the program anytime with Ctrl + C
 
