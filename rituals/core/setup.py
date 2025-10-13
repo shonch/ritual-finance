@@ -1,6 +1,17 @@
 from utils.mongo_client import select_rows, update_row
 from .setup_utils import format_currency, total_components
 
+def monthly_equivalent(amount, frequency):
+    if frequency == "weekly":
+        return amount * 52 / 12
+    elif frequency == "biweekly":
+        return amount * 26 / 12
+    elif frequency == "quarterly":
+        return amount / 3
+    elif frequency == "annually":
+        return amount / 12
+    return amount  # default monthly
+
 def run_setup_module(user_id):
 
     while True:
@@ -31,7 +42,10 @@ def run_setup_module(user_id):
 
                     # Inside the for item in items loop
                     print(f"• {item['name']} ({item['category']})")
-                    print(f"  - Monthly Payment: {format_currency(item.get('amount', 0))}")
+                    print(f"  - Payment: {format_currency(item.get('amount', 0))} ({item.get('frequency', 'monthly')})")
+                    monthly_estimate = monthly_equivalent(item.get('amount', 0), item.get('frequency', 'monthly'))
+                    print(f"  - Estimated Monthly Cost: {format_currency(monthly_estimate)}")
+
                     print(f"  - Principal: {format_currency(item.get('principal', 0))}")
                     print(f"  - Interest Rate: {round(item.get('interest_rate', 0) * 100, 2)}%")
 

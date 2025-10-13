@@ -64,3 +64,32 @@ def log_transaction(user_id, transaction_type):
 
     result = insert_row("transactions", transaction)
     return f"Transaction logged with ID {transaction['transaction_id']}"
+
+
+
+
+
+
+# NEW FUNCTION — for API use
+def log_transaction_from_api(user_id, transaction_data):
+    transaction = {
+        "transaction_id": generate_uuid(),
+        "user_id": user_id,
+        "amount": transaction_data.get("amount"),
+        "type": transaction_data.get("type"),
+        "category": transaction_data.get("category"),
+        "date": transaction_data.get("date"),
+        "description": transaction_data.get("description", "No description"),
+        "tags": transaction_data.get("tags", ""),
+        "source": transaction_data.get("source"),
+        "due_date": transaction_data.get("due_date"),
+        "emotional_weight": transaction_data.get("emotional_weight", "medium"),
+        "reconciliation_id": None,
+        "mode": transaction_data.get("mode", "structured")
+    }
+
+    result = insert_row("transactions", transaction)
+    return {
+        "message": "Transaction logged",
+        "transaction_id": transaction["transaction_id"]
+    }

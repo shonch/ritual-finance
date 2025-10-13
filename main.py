@@ -8,7 +8,7 @@ from rituals.reconciliation import perform_reckoning
 from models.transaction import log_transaction
 from inspiration.quotes import fetch_quote
 from rituals.core.setup import run_setup_module  # new module for setup rituals
-
+from rituals.core.dashboard import view_dashboard
 
 
 # 💡 You can exit the program anytime with Ctrl + C
@@ -80,6 +80,7 @@ def main():
     print("\n🌀 Welcome to ValhallaBank — Emotional Budget Tracker")
     startup_ritual()
     user_id = prompt_for_user()
+    view_dashboard(user_id)
     print("\n🧭 You are in Hybrid Mode — structure and flow are both honored.")
     run_hybrid_mode(user_id)
 
