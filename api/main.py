@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from models.user import add_user, user_exists, get_user
 from models.transaction import log_transaction_from_api
 from fastapi import Header, HTTPException, Depends, Query
+from bson import ObjectId
 import os
 app = FastAPI()
 
@@ -41,7 +42,7 @@ async def init_user(request: Request):
 
 @app.get("/transaction/view", dependencies=[Depends(verify_api_key)])
 def view_transactions(user_id: str = Query(...), category: str = Query(None), mode: str = Query(None)):
-    from utils.mongo_client import select_rows  # if not already imported
+    from utils.mongo_client import select_rows
 
     query = {"user_id": user_id}
     if category:
@@ -50,7 +51,5 @@ def view_transactions(user_id: str = Query(...), category: str = Query(None), mo
         query["mode"] = mode
 
     transactions = select_rows("transactions", query)
-    return {"transactions": transactions}
-
 
 
