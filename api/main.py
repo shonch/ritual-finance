@@ -1,10 +1,18 @@
 from fastapi import FastAPI, Request
 from models.user import add_user, user_exists, get_user
 from models.transaction import log_transaction_from_api
-
+from fastapi import Header, HTTPException, Depends, Query
+import os
 app = FastAPI()
 
-@app.post("/user/init")
+@app.post("/transaction", dependencies=[Depends(verify_api_key)])
+async def create_transaction(request: Request):
+    data = await request.json()
+    user_id = data.get("user_id")
+    transaction_data = data.get("transaction", {})
+    return log_transaction_from_api(user_id, transaction_data)
+
+@app.post("/user/init", dependencies=[Depends(verify_api_key)])
 async def init_user(request: Request):
     try:
         data = await request.json()
@@ -27,9 +35,21 @@ async def init_user(request: Request):
         print("Error in /user/init:", e)
         return {"error": str(e)}
 
-@app.post("/transaction")
-async def create_transaction(request: Request):
-    data = await request.json()
-    user_id = data.get("user_id")
-    transaction_data = data.get("transaction", {})
-    return log_transaction_from_api(user_id, transaction_data)
+@app.get("/transaction/view", dependencies=[Depends(verify_api_key)])
+def view_transactions(user_id: str = Query(...), category: str = Query(None), mode: str = Query(None)):
+    from utils.mongo_client import select_rows  # if not already imported
+
+    query = {"user_id": user_id}
+    if category:
+        query["category"] = category
+    if mode:
+        query["mode"] = mode
+
+    transactions = select_rows("transactions", query)
+    return {"transactions": transactions}
+
+
+
+def verify_api_key(x_api_key: str = Header(...)):
+    if x_api_key != os.getenv("API_KEY"):
+        raise HTTPException(status_code=403, detail="Forbidden")
