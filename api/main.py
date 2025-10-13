@@ -40,16 +40,22 @@ async def init_user(request: Request):
         print("Error in /user/init:", e)
         return {"error": str(e)}
 
+from bson import ObjectId
+
 @app.get("/transaction/view", dependencies=[Depends(verify_api_key)])
 def view_transactions(user_id: str = Query(...), category: str = Query(None), mode: str = Query(None)):
     from utils.mongo_client import select_rows
 
     query = {"user_id": user_id}
     if category:
-        query["category"] = category
+        query["category"] = {"$regex": f"^{category.strip()}$", "$options": "i"}
     if mode:
-        query["mode"] = mode
+        query["mode"] = {"$regex": f"^{mode.strip()}$", "$options": "i"}
 
     transactions = select_rows("transactions", query)
 
+    for t in transactions:
+        if "_id" in t and isinstance(t["_id"], ObjectId):
+            t["_id"] = str(t["_id"])
 
+    return {"transactions": transactions or []}
