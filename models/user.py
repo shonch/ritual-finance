@@ -1,6 +1,10 @@
-# models/user.py
+from pymongo import MongoClient
+import os
 
-from utils.mongo_client import insert_row, select_rows
+MONGO_URI = os.getenv("MONGO_URI", "your-mongodb-uri-here")
+client = MongoClient(MONGO_URI)
+db = client["valhallabank"]
+users_collection = db["users"]
 
 def add_user(user_id, name=None, email=None, note=None):
     user_data = {
@@ -9,12 +13,11 @@ def add_user(user_id, name=None, email=None, note=None):
         "email": email,
         "note": note
     }
-    insert_row("users", user_data)
+    users_collection.insert_one(user_data)
     print(f"👤 User added: {user_id}")
 
 def user_exists(user_id):
-    users = select_rows("users", {"user_id": user_id})
-    return len(users) > 0
+    return users_collection.count_documents({"user_id": user_id}) > 0
 
 def get_user(user_id):
     user = users_collection.find_one({"user_id": user_id})
