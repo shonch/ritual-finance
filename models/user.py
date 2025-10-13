@@ -17,5 +17,7 @@ def user_exists(user_id):
     return len(users) > 0
 
 def get_user(user_id):
-    users = select_rows("users", {"user_id": user_id})
-    return users[0] if users else None
+    user = users_collection.find_one({"user_id": user_id})
+    if user and "_id" in user:
+        user["_id"] = str(user["_id"])
+    return user
