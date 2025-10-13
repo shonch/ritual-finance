@@ -5,6 +5,10 @@ from fastapi import Header, HTTPException, Depends, Query
 import os
 app = FastAPI()
 
+def verify_api_key(x_api_key: str = Header(...)):
+    if x_api_key != os.getenv("API_KEY"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
 @app.post("/transaction", dependencies=[Depends(verify_api_key)])
 async def create_transaction(request: Request):
     data = await request.json()
@@ -50,6 +54,3 @@ def view_transactions(user_id: str = Query(...), category: str = Query(None), mo
 
 
 
-def verify_api_key(x_api_key: str = Header(...)):
-    if x_api_key != os.getenv("API_KEY"):
-        raise HTTPException(status_code=403, detail="Forbidden")
