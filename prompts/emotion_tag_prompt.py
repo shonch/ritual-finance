@@ -1,36 +1,12 @@
-
 # prompts/emotion_tag_prompt.py
 
-from utils.mongo_client import select_rows, insert_row
-from utils.uuid_generator import generate_uuid
+from emotional_budget_tracker.utils.emotion_tags import get_or_create_emotion_tag
 
 def select_emotion_tag(user_id):
-
-    tags = select_rows("emotion_tags", {"user_id": user_id})
     print("\n🧠 Choose an Emotion Tag:")
-    for i, tag in enumerate(tags):
-        emoji = tag.get("emoji", "")
-        label = tag.get("label", "")
-        print(f"{i+1}. {emoji} {label}")
+    choice = input("Enter a tag label (or type a new one): ")
 
-    choice = input("Enter number or type a new tag: ")
+    # Always call Phoenix to ensure tag exists
+    tag_id = get_or_create_emotion_tag(choice, user_id=user_id)
 
-    if choice.isdigit():
-        selected = tags[int(choice)-1]
-        return selected["tag_id"]
-    else:
-        new_tag = {
-            "tag_id": generate_uuid(),
-            "label": choice,
-            "emoji": input("Emoji for this tag: "),
-            "category": input("Category (e.g. grief, joy, closure): "),
-            "description": input("Description: "),
-            "archetype": input("Archetype (e.g. healer, rebel, seeker): "),
-            "user_defined": "Y",
-            "user_id": user_id,
-            "visibility": "private",
-            "intensity": input("Intensity (low, medium, high): "),
-            "times_used": 1
-        }
-        insert_row("emotion_tags", new_tag)
-        return new_tag["tag_id"]
+    return tag_id

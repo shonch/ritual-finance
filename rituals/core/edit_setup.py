@@ -1,6 +1,6 @@
-from utils.mongo_client import update_row, select_rows
-from utils.uuid_generator import generate_uuid
-from rituals.core.setup_utils import (
+from emotional_budget_tracker.utils.mongo_client import update_row, select_rows
+from emotional_budget_tracker.utils.uuid_generator import generate_uuid
+from emotional_budget_tracker.rituals.core.setup_utils import (
     format_currency,
     generate_due_dates,
     prompt_principal_and_interest,
@@ -16,8 +16,7 @@ def edit_setup_item(user_id):
         print("⚠️ No setup item found with that ID.")
         return
 
-    item = item[0]  # get the first match
-
+    item = item[0]
     category = item.get("category", "").lower()
     print(f"\n🛠️ Editing '{item['name']}'")
 
@@ -26,33 +25,30 @@ def edit_setup_item(user_id):
     new_amount = input(f"Payment Amount [{item['amount']}]: ").strip()
     new_amount = float(new_amount) if new_amount else item["amount"]
 
-    new_frequency = input(
-        f"Payment Frequency [{item.get('frequency', 'monthly')}]: "
-    ).strip().lower() or item.get("frequency", "monthly")
+    new_frequency = input(f"Payment Frequency [{item.get('frequency', 'monthly')}]: ").strip().lower() or item.get("frequency", "monthly")
 
+    # Principal and Interest
+    new_principal, new_interest_rate = prompt_principal_and_interest(category)
 
-    principal, interest_rate = prompt_principal_and_interest(category)
-
+    # Interest Inclusion Flag
+    includes_interest = input(f"Does this amount include interest? (yes/no) [{item.get('includes_interest', True)}]: ").strip().lower()
+    if includes_interest == "yes":
+        includes_interest = True
+    elif includes_interest == "no":
+        includes_interest = False
+    else:
+        includes_interest = item.get("includes_interest", True)
 
     new_due_date = input(f"Due Date [{item['due_date']}]: ").strip() or item["due_date"]
-    new_archetype = (
-        input(f"Archetype [{item['archetype']}]: ").strip() or item["archetype"]
-    )
+    new_archetype = input(f"Archetype [{item['archetype']}]: ").strip() or item["archetype"]
     new_symbolic_tag = get_emotion_tag()
-    
-   
-  
 
-    # Recurrence Update
-    new_recurrence = input(
-        f"Recurrence [{item.get('recurrence', 'none')}]: "
-    ).strip().lower() or item.get("recurrence", "none")
-    new_start_date = input(
-        f"Start Date [{item.get('start_date', 'N/A')}]: "
-    ).strip() or item.get("start_date", "N/A")
-    new_end_date = input(
-        f"End Date [{item.get('end_date', 'None')}]: "
-    ).strip() or item.get("end_date", None)
+    # Recurrence
+    new_recurrence = input(f"Recurrence [{item.get('recurrence', 'none')}]: ").strip().lower() or item.get("recurrence", "none")
+    is_one_time = new_recurrence == "none"
+
+    new_start_date = input(f"Start Date [{item.get('start_date', 'N/A')}]: ").strip() or item.get("start_date", "N/A")
+    new_end_date = input(f"End Date [{item.get('end_date', 'None')}]: ").strip() or item.get("end_date", None)
 
     # Component mutation
     print("\n🔍 Begin Component Mutation Ritual")
@@ -66,19 +62,17 @@ def edit_setup_item(user_id):
         tag = input("Emotional Tag: ").strip()
         components.append({"label": label, "amount": amount, "tag": tag})
 
-    # Optional emotional commentary
+    # Emotional commentary
     print("\n📝 Attach emotional commentary (type 'END' on a new line to finish):")
-
-
-lines = []
-while True:
-    line = input()
-    if line.strip().upper() == "END":
-        break
-    lines.append(line)
-note = "\n".join(lines)
-if note:
-    item["note"] = note
+    lines = []
+    while True:
+        line = input()
+        if line.strip().upper() == "END":
+            break
+        lines.append(line)
+    note = "\n".join(lines)
+    if note:
+        item["note"] = note
 
     # Final update
     update_row(
@@ -89,10 +83,12 @@ if note:
             "amount": new_amount,
             "principal": new_principal,
             "interest_rate": new_interest_rate,
+            "includes_interest": includes_interest,
             "due_date": new_due_date,
             "archetype": new_archetype,
             "symbolic_tag": new_symbolic_tag,
             "recurrence": new_recurrence,
+            "is_one_time": is_one_time,
             "start_date": new_start_date,
             "end_date": new_end_date,
             "components": components,

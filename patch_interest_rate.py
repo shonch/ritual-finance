@@ -1,14 +1,19 @@
-from utils.mongo_client import update_row
 
-setup_id = "bf6054fb-5603-4169-b722-85cbe8b4e2cf"
+from emotional_budget_tracker.utils.mongo_client import update_row
 
-update_row(
-    "setup_items",
-    {"setup_id": setup_id},
-    {
-        "interest_rate": 0.1599,
-        "arc_enabled": True
-    }
-)
 
-print("✅ Interest rate updated to 15.99%. Arc simulation now enabled.")
+
+
+
+def update_interest_rate(setup_id: str, rate: float, arc_enabled: bool = True):
+    update_row(
+        "setup_items",
+        {"setup_id": setup_id},
+        {
+            "interest_rate": rate,
+            "arc_enabled": arc_enabled
+        }
+    )
+    return {
+        "message": f"✅ Interest rate updated to {rate * 100:.2f}%. Arc simulation {'enabled' if arc_enabled else 'disabled'}."
+    }`

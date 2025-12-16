@@ -1,5 +1,15 @@
 # prompts/symbolic_time_prompt.py
 
+def get_symbolic_time(choice: str):
+    options = {
+        "1": "🌅 Morning",
+        "2": "🌙 Evening",
+        "3": "🌀 Transition",
+        "4": "🔥 Urgency",
+        "5": "💧 Release"
+    }
+    return options.get(choice, "🌫️ Undefined")
+
 def select_symbolic_time():
     options = {
         "1": "🌅 Morning",

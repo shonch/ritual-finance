@@ -2,10 +2,13 @@
 
 from pymongo import MongoClient
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 # Load MongoDB URI and database name from environment variables
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://Cluster84114:UHRfTFlMdUFr@cluster84114.cfbsn8e.mongodb.net/")
-DB_NAME = os.getenv("DB_NAME", "valhalla_ledger")
+MONGO_URI = os.getenv("MONGO_URI")
+print("🔍 MONGO_URI in use:", MONGO_URI)
+DB_NAME = os.getenv("DB_NAME")
 
 def get_mongo_client():
     """Returns a MongoClient instance connected to the specified URI."""

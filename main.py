@@ -3,7 +3,7 @@ load_dotenv()
 
 from rituals.core.arc_simulator import simulate_payoff_arc
 
-from models.user import add_user, user_exists, get_user
+
 from rituals.reconciliation import perform_reckoning
 from models.transaction import log_transaction
 from inspiration.quotes import fetch_quote

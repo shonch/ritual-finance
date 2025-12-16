@@ -1,7 +1,7 @@
 # 🧰 core/setup_utils.py — Shared Ritual Tools
 
 from datetime import datetime, timedelta
-
+from emotional_budget_tracker.utils.mongo_client import update_row
 def format_currency(amount):
     """Formats a float as currency string."""
     return f"${amount:,.2f}"
@@ -65,3 +65,44 @@ def get_emotion_tag():
     if choice.isdigit() and 1 <= int(choice) <= len(tags):
         return tags[int(choice) - 1]
     return choice or "🌀 Momentum"
+
+
+
+def advance_due_date_if_needed(item, today=None, update_db=False):
+    if today is None:
+        today = datetime.today()
+
+    recurrence = item.get("recurrence", "none")
+    due_str = item.get("due_date", "N/A")
+
+    if recurrence == "none" or due_str == "N/A":
+        return item
+
+    try:
+        due_date = datetime.strptime(due_str, "%Y-%m-%d")
+    except ValueError:
+        return item
+
+    delta_map = {
+        "weekly": timedelta(weeks=1),
+        "biweekly": timedelta(weeks=2),
+        "monthly": timedelta(days=30),
+        "quarterly": timedelta(days=90),
+        "annually": timedelta(days=365)
+    }
+    delta = delta_map.get(recurrence.lower(), timedelta(days=30))
+
+    original_due = due_date
+    while due_date < today:
+        due_date += delta
+
+    if due_date != original_due:
+        item["due_date"] = due_date.strftime("%Y-%m-%d")
+        if update_db:
+            update_row(
+                "setup_items",
+                {"setup_id": item["setup_id"], "user_id": item["user_id"]},
+                {"due_date": item["due_date"]}
+            )
+
+    return item
