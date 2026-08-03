@@ -4,13 +4,15 @@ from bson import ObjectId
 from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
 import os
+from pathlib import Path
 from dotenv import load_dotenv
+
 
 from emotional_budget_tracker.models.transaction import log_transaction_from_api
 from emotional_budget_tracker.utils.mongo_client import select_rows
 from emotional_budget_tracker.schemas import TransactionCreate, TransactionOut
 # --- Environment ---
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")  # must match Phoenix
 ALGORITHM = "HS256"
 

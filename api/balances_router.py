@@ -4,12 +4,12 @@ from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
 import os
 from dotenv import load_dotenv
-
+from pathlib import Path
 from emotional_budget_tracker.models.balance import calculate_balance, insert_balance_snapshot
 from emotional_budget_tracker.schemas import BalanceUpdate, BalanceOut
 
 # --- Environment ---
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")  # must match Phoenix
 ALGORITHM = "HS256"
 

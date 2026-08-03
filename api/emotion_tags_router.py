@@ -4,12 +4,12 @@ from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
 import os
 from dotenv import load_dotenv
-
+from pathlib import Path
 from emotional_budget_tracker.utils.mongo_client import insert_row
 from emotional_budget_tracker.schemas import EmotionTagCreate, EmotionTagOut
-
+import uuid
 # --- Environment ---
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")  # must match Phoenix
 ALGORITHM = "HS256"
 
@@ -34,10 +34,11 @@ def verify_jwt(token: str = Depends(oauth2_scheme)) -> str:
 @router.post("/", response_model=EmotionTagOut, summary="Create a new emotion tag")
 def create_emotion_tag(tag: EmotionTagCreate, user_id: str = Depends(verify_jwt)):
     tag_doc = {
-        "tag_id": f"{user_id}-tag",  # replace with UUID if you prefer
-        "user_id": user_id,
-        "tag": tag.tag,
-        "intensity": tag.intensity,
+    "tag_id": str(uuid.uuid4()),
+    "user_id": user_id,
+    "tag": tag.tag,
+    "intensity": tag.intensity,
     }
+
     insert_row("emotion_tags", tag_doc)
     return {"message": "Emotion tag created", "tag_id": tag_doc["tag_id"]}

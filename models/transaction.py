@@ -72,13 +72,12 @@ def log_transaction_from_api(user_id, transaction_data):
     # Normalize tags
     raw_tags = transaction_data.get("tags", [])
     if isinstance(raw_tags, str):
-        raw_tags = [raw_tags]
+        raw_tags = [raw_tags] if raw_tags.strip() else []
     final_tags = [normalize_tag(tag) for tag in raw_tags]
 
     # Create tags in Phoenix
     for tag in final_tags:
-        create_tag({"tag_name": tag, "description": "Auto-inserted from Valhalla transaction"})
-
+        create_tag({"name": tag, "description": "Auto-inserted from Valhalla transaction"})
     # Build Markdown overlay
     md_content = f"""### 💸 Transaction Logged
 

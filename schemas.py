@@ -19,8 +19,7 @@ class TransactionOut(BaseModel):
     transaction_id: str
 
 class BalanceUpdate(BaseModel):
-    user_id: str
-    balance: float
+    amount: float
     last_updated: Optional[str] = None
 
 class BalanceOut(BaseModel):
