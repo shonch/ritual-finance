@@ -6,6 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "emotional_budget_tracker"
 version = "0.1.0"
 
-[tool.setuptools]
-packages = ["emotional_budget_tracker", "emotional_budget_tracker.api", "emotional_budget_tracker.models", "emotional_budget_tracker.rituals", "emotional_budget_tracker.utils"]
-package-dir = {"emotional_budget_tracker" = "."}
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["emotional_budget_tracker*"]
