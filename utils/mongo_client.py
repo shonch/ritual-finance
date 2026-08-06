@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Load MongoDB URI and database name from environment variables
-MONGO_URI = os.getenv("MONGO_URI")
-print("🔍 MONGO_URI in use:", MONGO_URI)
-DB_NAME = os.getenv("DB_NAME")
+MONGO_URI = os.getenv("VALHALLA_MONGO_URI")
+print("🔍 VALHALLA_MONGO_URI in use:", MONGO_URI)
+DB_NAME = os.getenv("VALHALLA_DB_NAME", "valhalla_ledger")
 
 def get_mongo_client():
     """Returns a MongoClient instance connected to the specified URI."""
