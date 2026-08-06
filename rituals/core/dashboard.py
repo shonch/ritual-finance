@@ -27,6 +27,19 @@ def generate_dashboard(user_id: str, start_date=None, end_date=None):
             total = amount + monthly_interest + component_total
 
         recurring_total += total
+
+    # NEW: real interest/principal breakdown, only when a current balance is known
+        current_balance = item.get("current_balance")
+        interest_rate = item.get("interest_rate")
+        interest_this_payment = None
+        principal_this_payment = None
+        projected_balance = None
+
+        if current_balance is not None and interest_rate:
+            interest_this_payment = current_balance * (interest_rate / 12)
+            principal_this_payment = amount - interest_this_payment
+            projected_balance = current_balance - principal_this_payment
+
         commitments.append({
             "name": item.get("name"),
             "symbolic_tag": item.get("symbolic_tag"),
@@ -34,8 +47,12 @@ def generate_dashboard(user_id: str, start_date=None, end_date=None):
             "amount": total,
             "due_date": item.get("due_date"),
             "recurrence": item.get("recurrence"),
-            "is_one_time": item.get("is_one_time", False)
-        })
+            "is_one_time": item.get("is_one_time", False),
+            "interest_this_payment": interest_this_payment,
+            "principal_this_payment": principal_this_payment,
+            "projected_balance": projected_balance,
+    })
+
 
     return {
         "projection_window": {

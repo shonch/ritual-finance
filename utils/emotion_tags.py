@@ -11,24 +11,14 @@ PHOENIX_LOGIN_EMAIL = os.getenv("PHOENIX_LOGIN_EMAIL", "service@phoenix")
 PHOENIX_LOGIN_PASSWORD = os.getenv("PHOENIX_LOGIN_PASSWORD", "change_me")
 
 def get_phoenix_token():
-    data = {"username": PHOENIX_LOGIN_EMAIL, "password": PHOENIX_LOGIN_PASSWORD}
-    r = requests.post(f"{PHOENIX_API_URL}/token", data=data)
+    data = {"email": PHOENIX_LOGIN_EMAIL, "password": PHOENIX_LOGIN_PASSWORD}
+    r = requests.post(f"{PHOENIX_API_URL}/auth/login", json=data)
     r.raise_for_status()
-    return r.json()["access_token"]
+    return r.json()["token"]
 
-def get_or_create_emotion_tag(label, user_id="shon001", emoji="🌀", category="custom"):
-    # Try to obtain a Phoenix JWT
-    try:
-        token = get_phoenix_token()
-    except requests.exceptions.RequestException as e:
-        print(f"⚠️ Phoenix token unavailable: {e}")
-        # Fallback: allow the transaction to proceed with the plain label
-        return label
-
+def get_or_create_emotion_tag(label, token, category="custom"):
     payload = {
-        "tag_name": label,
-        "user_id": user_id,
-        "emoji": emoji,
+        "name": label,
         "category": category,
         "description": f"User-defined tag: {label}",
         "archetype": "emergent",
@@ -37,12 +27,12 @@ def get_or_create_emotion_tag(label, user_id="shon001", emoji="🌀", category="
     headers = {"Authorization": f"Bearer {token}"}
 
     try:
-        r = requests.post(f"{PHOENIX_API_URL}/tags/", json=payload, headers=headers)
+        r = requests.post(f"{PHOENIX_API_URL}/tags/create", json=payload, headers=headers)
         r.raise_for_status()
         data = r.json()
         return data.get("tag_id", label)
     except requests.exceptions.RequestException as e:
-        print(f"⚠️ Could not reach Phoenix /tags: {e}")
+        print(f"⚠️ Could not reach Phoenix /tags/create: {e}")
         return label
 
 def get_tags(token: str):

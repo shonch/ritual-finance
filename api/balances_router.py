@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 import os
 from dotenv import load_dotenv
 from pathlib import Path
-from emotional_budget_tracker.models.balance import calculate_balance, insert_balance_snapshot
+from emotional_budget_tracker.models.balance import calculate_balance
 from emotional_budget_tracker.schemas import BalanceUpdate, BalanceOut
 
 # --- Environment ---
@@ -31,11 +31,6 @@ def verify_jwt(token: str = Depends(oauth2_scheme)) -> str:
         raise HTTPException(status_code=401, detail="Token verification failed")
 
 # --- Endpoints ---
-@router.put("/update", response_model=BalanceOut, summary="Insert a balance snapshot")
-def update_balance(balance: BalanceUpdate, user_id: str = Depends(verify_jwt)):
-    # Use the Pydantic model directly
-    insert_balance_snapshot(user_id, balance.amount, source="manual", note=None)
-    return {"message": f"Balance snapshot saved for {user_id}.", "balance_id": "generated_id_here"}
 
 @router.get("/view", summary="View balance history")
 def view_balance(

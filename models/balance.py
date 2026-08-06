@@ -34,7 +34,9 @@ def calculate_balance(user_id, start_date=None, end_date=None, mode=None, catego
 
     income_total = sum(t.get("amount", 0) for t in transactions if t.get("type") == "income")
     expense_total = sum(t.get("amount", 0) for t in transactions if t.get("type") == "expense")
-    balance = income_total - expense_total
+    adjustment_total = sum(t.get("amount", 0) for t in transactions if t.get("type") == "adjustment")
+    balance = income_total - expense_total + adjustment_total
+
 
     return {
         "income_total": income_total,
