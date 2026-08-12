@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from emotional_budget_tracker.models.transaction import log_transaction_from_api
 from emotional_budget_tracker.utils.mongo_client import select_rows
+from emotional_budget_tracker.models.transaction import log_transaction_from_api, mark_transaction_posted
 from emotional_budget_tracker.schemas import TransactionCreate, TransactionOut
 # --- Environment ---
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
@@ -74,3 +75,11 @@ def view_transactions(
             t["_id"] = str(t["_id"])
 
     return {"transactions": transactions or []}
+
+@router.patch("/{transaction_id}/mark-posted", summary="Mark a foretold transaction as landed")
+def mark_posted(
+    transaction_id: str,
+    actual_date: str = Query(None, description="Optional: correct the date if it landed on a different day than scheduled"),
+    user_id: str = Depends(verify_jwt),
+):
+    return mark_transaction_posted(user_id, transaction_id, actual_date)

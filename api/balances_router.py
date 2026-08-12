@@ -5,7 +5,12 @@ from fastapi.security import OAuth2PasswordBearer
 import os
 from dotenv import load_dotenv
 from pathlib import Path
-from emotional_budget_tracker.models.balance import calculate_balance
+from emotional_budget_tracker.models.balance import (
+    calculate_balance,
+    calculate_available_balance,
+    calculate_daily_projection,
+    calculate_end_of_month_projection,
+)
 from emotional_budget_tracker.schemas import BalanceUpdate, BalanceOut
 
 # --- Environment ---
@@ -41,3 +46,20 @@ def view_balance(
     category: str = Query(None),
 ):
     return calculate_balance(user_id, start_date, end_date, mode, category)
+
+@router.get("/available", summary="Real, spendable balance — landed transactions only")
+def available_balance(user_id: str = Depends(verify_jwt)):
+    return calculate_available_balance(user_id)
+
+
+@router.get("/projection/daily", summary="Day-by-day projected balance walking forward through foretold transactions")
+def daily_projection(
+    user_id: str = Depends(verify_jwt),
+    through_date: str = Query(None, description="Optional: project through this date (YYYY-MM-DD). Defaults to end of current month."),
+):
+    return {"daily": calculate_daily_projection(user_id, through_date)}
+
+
+@router.get("/projection/end-of-month", summary="Single projected balance figure for the end of the current month")
+def end_of_month_projection(user_id: str = Depends(verify_jwt)):
+    return {"balance": calculate_end_of_month_projection(user_id)}

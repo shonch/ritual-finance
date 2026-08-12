@@ -67,6 +67,7 @@ def log_transaction(user_id, transaction_type):
     return f"Transaction logged with ID {transaction['transaction_id']}"
 
 
+
 # --- NEW FUNCTION — for API use ---
 def log_transaction_from_api(user_id, transaction_data):
     # Normalize tags
@@ -78,6 +79,21 @@ def log_transaction_from_api(user_id, transaction_data):
     # Create tags in Phoenix
     for tag in final_tags:
         create_tag({"name": tag, "description": "Auto-inserted from Valhalla transaction"})
+
+    # Determine status: no date, or date <= today -> landed (posted).
+    # A future date -> foretold (scheduled), until manually marked landed.
+    tx_date_str = transaction_data.get("date")
+    if tx_date_str:
+        try:
+            tx_date = datetime.strptime(tx_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            tx_date = date.today()
+    else:
+        tx_date = date.today()
+        tx_date_str = str(tx_date)
+
+    status = "scheduled" if tx_date > date.today() else "posted"
+
     # Build Markdown overlay
     md_content = f"""### 💸 Transaction Logged
 
@@ -85,10 +101,11 @@ def log_transaction_from_api(user_id, transaction_data):
 **Amount**: {transaction_data.get("amount")}  
 **Mode**: {transaction_data.get("mode", "structured")}  
 **Tags**: {", ".join(final_tags) if final_tags else "none"}  
-**Date**: {transaction_data.get("date")}  
+**Date**: {tx_date_str}  
 **Source**: {transaction_data.get("source")}  
 **Due Date**: {transaction_data.get("due_date") or "N/A"}  
 **Emotional Weight**: {transaction_data.get("emotional_weight", "medium")}  
+**Status**: {status}  
 
 ---
 
@@ -101,7 +118,7 @@ def log_transaction_from_api(user_id, transaction_data):
         "amount": transaction_data.get("amount"),
         "type": transaction_data.get("type"),
         "category": transaction_data.get("category"),
-        "date": transaction_data.get("date"),
+        "date": tx_date_str,
         "description": transaction_data.get("description", "No description"),
         "tags": final_tags,
         "source": transaction_data.get("source"),
@@ -109,12 +126,28 @@ def log_transaction_from_api(user_id, transaction_data):
         "emotional_weight": transaction_data.get("emotional_weight", "medium"),
         "reconciliation_id": None,
         "mode": transaction_data.get("mode", "structured"),
-        "content": md_content,  # <-- Markdown overlay
+        "status": status,
+        "content": md_content,
     }
 
     result = insert_row("transactions", transaction)
     return {
         "message": "Transaction logged",
         "transaction_id": transaction["transaction_id"],
-        "content": md_content
-    }
+        "content": md_content,
+        "status": status
+    
+   } 
+
+def mark_transaction_posted(user_id, transaction_id, actual_date=None):
+    """Flip a scheduled (foretold) transaction to posted (landed).
+    Optionally correct the date if it landed on a different day than expected."""
+    from emotional_budget_tracker.utils.mongo_client import update_row
+
+    update_fields = {"status": "posted"}
+    if actual_date:
+        update_fields["date"] = actual_date
+
+    update_row("transactions", {"transaction_id": transaction_id, "user_id": user_id}, update_fields)
+    return {"message": "Transaction marked as landed", "transaction_id": transaction_id}
+
