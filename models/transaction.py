@@ -151,3 +151,10 @@ def mark_transaction_posted(user_id, transaction_id, actual_date=None):
     update_row("transactions", {"transaction_id": transaction_id, "user_id": user_id}, update_fields)
     return {"message": "Transaction marked as landed", "transaction_id": transaction_id}
 
+
+def delete_transaction(user_id, transaction_id):
+    """Permanently remove a transaction. No undo — used for real duplicates or mistaken entries."""
+    from emotional_budget_tracker.utils.mongo_client import delete_row
+
+    result = delete_row("transactions", {"transaction_id": transaction_id, "user_id": user_id})
+    return {"message": "Transaction deleted", "transaction_id": transaction_id, "deleted": result.deleted_count > 0}

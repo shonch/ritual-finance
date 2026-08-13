@@ -41,6 +41,7 @@ def generate_dashboard(user_id: str, start_date=None, end_date=None):
             projected_balance = current_balance - principal_this_payment
 
         commitments.append({
+            "setup_id": item.get("setup_id"),
             "name": item.get("name"),
             "symbolic_tag": item.get("symbolic_tag"),
             "archetype": item.get("archetype"),

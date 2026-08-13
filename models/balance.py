@@ -158,3 +158,26 @@ def calculate_end_of_month_projection(user_id):
     if not daily:
         return calculate_available_balance(user_id)["balance"]
     return daily[-1]["balance"]
+
+
+
+def _is_landed(t):
+    """
+    Landed means status == "posted". For transactions predating the status
+    field (no status at all), fall back to date: today or past = landed,
+    future-dated = foretold — rather than blindly assuming posted.
+    """
+    status = t.get("status")
+    if status is not None:
+        return status == "posted"
+
+    t_date_str = t.get("date")
+    if not t_date_str:
+        return True  # no date at all — nothing to judge by, assume landed
+
+    try:
+        t_date = datetime.strptime(t_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return True
+
+    return t_date <= date.today()

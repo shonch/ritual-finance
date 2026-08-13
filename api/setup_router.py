@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import os
 import uuid
 from datetime import datetime, timedelta
+from emotional_budget_tracker.rituals.core.setup_service import apply_burden_payment
 
 from emotional_budget_tracker.utils.mongo_client import insert_row
 
@@ -106,3 +107,11 @@ def last_reckoned(user_id: str = Depends(verify_jwt)):
         return {"last_reckoned_date": None}
     latest = max(logs, key=lambda l: l["date"])
     return {"last_reckoned_date": latest["date"]}
+
+
+@router.post("/{setup_id}/pay")
+def pay_burden(setup_id: str, payload: dict, user_id: str = Depends(verify_jwt)):
+    payment_amount = payload.get("amount")
+    if payment_amount is None:
+        raise HTTPException(status_code=400, detail="Payment amount is required.")
+    return apply_burden_payment(user_id, setup_id, payment_amount)

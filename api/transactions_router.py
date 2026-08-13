@@ -12,6 +12,7 @@ from emotional_budget_tracker.models.transaction import log_transaction_from_api
 from emotional_budget_tracker.utils.mongo_client import select_rows
 from emotional_budget_tracker.models.transaction import log_transaction_from_api, mark_transaction_posted
 from emotional_budget_tracker.schemas import TransactionCreate, TransactionOut
+from emotional_budget_tracker.models.transaction import log_transaction_from_api, mark_transaction_posted, delete_transaction
 # --- Environment ---
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")  # must match Phoenix
@@ -83,3 +84,8 @@ def mark_posted(
     user_id: str = Depends(verify_jwt),
 ):
     return mark_transaction_posted(user_id, transaction_id, actual_date)
+
+
+@router.delete("/{transaction_id}", summary="Permanently delete a transaction")
+def delete_transaction_route(transaction_id: str, user_id: str = Depends(verify_jwt)):
+    return delete_transaction(user_id, transaction_id)
