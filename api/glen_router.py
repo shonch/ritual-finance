@@ -36,13 +36,17 @@ def view_glen(
     token: str = Depends(oauth2_scheme),
     days: int = Query(14)
 ):
+
+
     cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    print("GLEN DEBUG — cutoff:", cutoff)
 
     # Valhalla's own recent transactions
     transactions = select_rows("transactions", {"user_id": user_id, "date": {"$gte": cutoff}})
     for t in transactions:
         if "_id" in t:
             t["_id"] = str(t["_id"])
+    print("GLEN DEBUG — transaction count:", len(transactions))
 
     # Phoenix fragments in the same window, via the shared-token bridge
     fragments = []
@@ -51,8 +55,13 @@ def view_glen(
             f"{PHOENIX_API_URL}/phoenix/state/",
             headers={"Authorization": f"Bearer {token}"}
         )
+        print("GLEN DEBUG — Phoenix call status:", resp.status_code)
         resp.raise_for_status()
         raw = resp.json().get("raw", {})
+        print("GLEN DEBUG — raw keys:", list(raw.keys()))
+        print("GLEN DEBUG — fragments raw value:", str(raw.get("fragments"))[:400])
+        print("GLEN DEBUG — emotional_fragments raw value:", str(raw.get("emotional_fragments"))[:400])
+        print("GLEN DEBUG — revelations raw value:", str(raw.get("revelations"))[:400])
         for key in ["fragments", "emotional_fragments", "revelations"]:
             for f in raw.get(key, []):
                 ts = f.get("timestamp") or f.get("date")
@@ -63,7 +72,8 @@ def view_glen(
                         "subject": f.get("subject") or f.get("title"),
                         "tags": f.get("tags", [])
                     })
-    except requests.exceptions.RequestException:
-        pass  # Glen still shows transactions even if Phoenix is unreachable
+    except requests.exceptions.RequestException as e:
+        print("GLEN DEBUG — Phoenix call FAILED:", e)
 
+    print("GLEN DEBUG — final fragment count:", len(fragments))
     return {"transactions": transactions, "fragments": fragments, "window_days": days}

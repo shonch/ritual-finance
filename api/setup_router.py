@@ -115,3 +115,10 @@ def pay_burden(setup_id: str, payload: dict, user_id: str = Depends(verify_jwt))
     if payment_amount is None:
         raise HTTPException(status_code=400, detail="Payment amount is required.")
     return apply_burden_payment(user_id, setup_id, payment_amount)
+
+
+@router.delete("/{setup_id}")
+def delete_setup_item(setup_id: str, user_id: str = Depends(verify_jwt)):
+    from emotional_budget_tracker.utils.mongo_client import delete_row
+    result = delete_row("setup_items", {"setup_id": setup_id, "user_id": user_id})
+    return {"message": "Burden removed", "setup_id": setup_id, "deleted": result.deleted_count > 0}
