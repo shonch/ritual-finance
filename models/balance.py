@@ -1,7 +1,8 @@
+# models/balance.py
+
 from datetime import date, datetime, timedelta
 from calendar import monthrange
-from emotional_budget_tracker.utils.mongo_client import insert_row
-from emotional_budget_tracker.utils.mongo_client import select_rows
+from emotional_budget_tracker.utils.mongo_client import insert_row, select_rows
 
 
 def insert_balance_snapshot(user_id, balance, source="manual", note=None):
@@ -20,7 +21,36 @@ def insert_balance_snapshot(user_id, balance, source="manual", note=None):
         print("⚠️ Failed to save balance snapshot.")
 
 
-def calculate_balance(user_id, start_date=None, end_date=None, mode=None, category=None):
+def _is_landed(t):
+    """
+    Landed means status == "posted". For transactions predating the status
+    field (no status at all), fall back to date: today or past = landed,
+    future-dated = foretold — rather than blindly assuming posted.
+    Uses UTC explicitly rather than the server's local clock, since every
+    other date in this system (transactions, Phoenix fragments) is UTC-based.
+    """
+    status = t.get("status")
+    if status is not None:
+        return status == "posted"
+
+    t_date_str = t.get("date")
+    if not t_date_str:
+        return True  # no date at all — nothing to judge by, assume landed
+
+    try:
+        t_date = datetime.strptime(t_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return True
+
+    return t_date <= datetime.utcnow().date()
+
+def calculate_balance(user_id, start_date=None, end_date=None, mode=None, category=None, include_scheduled=False):
+    """
+    Core balance calculation. Defaults to landed (posted) transactions only —
+    what's actually in the bank, not what's foretold. Pass include_scheduled=True
+    to also count scheduled/foretold transactions within the date range, for
+    reporting views that explicitly want that broader picture.
+    """
     query = {"user_id": user_id}
 
     if start_date or end_date:
@@ -36,6 +66,9 @@ def calculate_balance(user_id, start_date=None, end_date=None, mode=None, catego
 
     transactions = select_rows("transactions", query)
 
+    if not include_scheduled:
+        transactions = [t for t in transactions if _is_landed(t)]
+
     income_total = sum(t.get("amount", 0) for t in transactions if t.get("type") == "income")
     expense_total = sum(t.get("amount", 0) for t in transactions if t.get("type") == "expense")
     adjustment_total = sum(t.get("amount", 0) for t in transactions if t.get("type") == "adjustment")
@@ -49,35 +82,9 @@ def calculate_balance(user_id, start_date=None, end_date=None, mode=None, catego
     }
 
 
-def _is_landed(t):
-    """Missing status = pre-existing transaction, treated as landed by default."""
-    return t.get("status", "posted") == "posted"
-
-
-def _signed_amount(t):
-    amt = t.get("amount", 0)
-    ttype = t.get("type")
-    if ttype == "expense":
-        return -amt
-    return amt  # income and adjustment both add
-
-
 def calculate_available_balance(user_id):
     """Real, spendable balance — landed transactions only, ignores anything foretold."""
-    transactions = select_rows("transactions", {"user_id": user_id})
-    landed = [t for t in transactions if _is_landed(t)]
-
-    income_total = sum(t.get("amount", 0) for t in landed if t.get("type") == "income")
-    expense_total = sum(t.get("amount", 0) for t in landed if t.get("type") == "expense")
-    adjustment_total = sum(t.get("amount", 0) for t in landed if t.get("type") == "adjustment")
-    balance = income_total - expense_total + adjustment_total
-
-    return {
-        "income_total": income_total,
-        "expense_total": expense_total,
-        "balance": balance,
-        "transaction_count": len(landed)
-    }
+    return calculate_balance(user_id)
 
 
 def calculate_daily_projection(user_id, through_date=None):
@@ -132,9 +139,6 @@ def calculate_daily_projection(user_id, through_date=None):
     while current <= through_date:
         day_entry = by_date.get(current, {"income": 0, "expense": 0})
 
-        # Apply the day's net effect to the running balance.
-        # (adjustments, if any landed this day, still shift the balance
-        # even though they're not surfaced as income/expense marks)
         adjustment_total = sum(
             t.get("amount", 0)
             for t in foretold
@@ -152,32 +156,10 @@ def calculate_daily_projection(user_id, through_date=None):
 
     return daily
 
+
 def calculate_end_of_month_projection(user_id):
     """Single number: projected balance at the end of the current month."""
     daily = calculate_daily_projection(user_id)
     if not daily:
         return calculate_available_balance(user_id)["balance"]
     return daily[-1]["balance"]
-
-
-
-def _is_landed(t):
-    """
-    Landed means status == "posted". For transactions predating the status
-    field (no status at all), fall back to date: today or past = landed,
-    future-dated = foretold — rather than blindly assuming posted.
-    """
-    status = t.get("status")
-    if status is not None:
-        return status == "posted"
-
-    t_date_str = t.get("date")
-    if not t_date_str:
-        return True  # no date at all — nothing to judge by, assume landed
-
-    try:
-        t_date = datetime.strptime(t_date_str, "%Y-%m-%d").date()
-    except ValueError:
-        return True
-
-    return t_date <= date.today()

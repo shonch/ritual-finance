@@ -4,12 +4,14 @@ from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
 from emotional_budget_tracker.utils.mongo_client import insert_row
 from emotional_budget_tracker.schemas import ValhallaTagCreate, ValhallaTagOut
 
+
 # --- Environment ---
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")  # must match Phoenix
 ALGORITHM = "HS256"
 

@@ -40,6 +40,17 @@ def verify_jwt(token: str = Depends(oauth2_scheme)) -> str:
 async def create_transaction(transaction: TransactionCreate, user_id: str = Depends(verify_jwt)):
     return log_transaction_from_api(user_id, transaction.dict())
 
+@router.get("/last-entry", summary="Most recent posted transaction date")
+def last_entry_date(user_id: str = Depends(verify_jwt)):
+    results = select_rows(
+        "transactions",
+        {"user_id": user_id, "status": "posted"},
+        sort=[("date", -1)],
+        limit=1
+    )
+    return {"last_date": results[0]["date"] if results else None}
+
+
 @router.get("/", summary="View transactions with filters")
 def view_transactions(
     user_id: str = Depends(verify_jwt),

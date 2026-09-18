@@ -7,6 +7,7 @@ import os
 import uuid
 from datetime import datetime, timedelta
 from emotional_budget_tracker.rituals.core.setup_service import apply_burden_payment
+from emotional_budget_tracker.rituals.core.dashboard import generate_dashboard
 
 from emotional_budget_tracker.utils.mongo_client import insert_row
 
@@ -60,8 +61,7 @@ def create_setup_item_route(payload: dict, user_id: str = Depends(verify_jwt)):
         "components": payload.get("components") or [],
         "current_balance": payload.get("current_balance"),
         "term_months": payload.get("term_months"),
-
-        }
+    }
 
     result = insert_row("setup_items", setup_item)
     if not result.inserted_id:
@@ -70,28 +70,10 @@ def create_setup_item_route(payload: dict, user_id: str = Depends(verify_jwt)):
     return {"message": f"'{setup_item['name']}' placed in the ritual field.", "setup_id": setup_item["setup_id"]}
 
 
-from emotional_budget_tracker.rituals.core.dashboard import generate_dashboard
-
 @router.get("/dashboard")
 def view_setup_dashboard(user_id: str = Depends(verify_jwt)):
     return generate_dashboard(user_id)
 
-@router.post("/mark-agreed")
-def mark_agreed(user_id: str = Depends(verify_jwt)):
-    insert_row("reckoning_log", {"user_id": user_id, "date": datetime.utcnow().isoformat()})
-    return {"message": "Marked agreed."}
-
-
-@router.get("/last-reckoned")
-def last_reckoned(user_id: str = Depends(verify_jwt)):
-    from emotional_budget_tracker.utils.mongo_client import select_rows
-    logs = select_rows("reckoning_log", {"user_id": user_id})
-    if not logs:
-        return {"last_reckoned_date": None}
-    latest = max(logs, key=lambda l: l["date"])
-    return {"last_reckoned_date": latest["date"]}
-
-
 
 @router.post("/mark-agreed")
 def mark_agreed(user_id: str = Depends(verify_jwt)):
@@ -102,12 +84,10 @@ def mark_agreed(user_id: str = Depends(verify_jwt)):
 @router.get("/last-reckoned")
 def last_reckoned(user_id: str = Depends(verify_jwt)):
     from emotional_budget_tracker.utils.mongo_client import select_rows
-    logs = select_rows("reckoning_log", {"user_id": user_id})
+    logs = select_rows("reckoning_log", {"user_id": user_id}, sort=[("date", -1)], limit=1)
     if not logs:
         return {"last_reckoned_date": None}
-    latest = max(logs, key=lambda l: l["date"])
-    return {"last_reckoned_date": latest["date"]}
-
+    return {"last_reckoned_date": logs[0]["date"]}
 
 @router.post("/{setup_id}/pay")
 def pay_burden(setup_id: str, payload: dict, user_id: str = Depends(verify_jwt)):

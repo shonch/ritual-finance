@@ -28,11 +28,6 @@ def insert_row(collection_name, data):
     """Inserts a document into the specified collection."""
     return get_collection(collection_name).insert_one(data)
 
-def select_rows(collection_name, filters=None):
-    """Retrieves documents from the specified collection."""
-    if filters is None:
-        filters = {}
-    return list(get_collection(collection_name).find(filters))
 
 def update_row(collection_name, match_dict, update_dict):
     """Updates a document in the specified collection."""
@@ -41,3 +36,19 @@ def update_row(collection_name, match_dict, update_dict):
 def delete_row(collection_name, match_dict):
     """Deletes a document from the specified collection."""
     return get_collection(collection_name).delete_one(match_dict)
+
+
+def select_rows(collection_name, filters=None, sort=None, limit=None):
+    """
+    Retrieves documents from the specified collection.
+    sort: optional list of (field, direction) tuples, e.g. [("date", -1)]
+    limit: optional int, max documents to return
+    """
+    if filters is None:
+        filters = {}
+    cursor = get_collection(collection_name).find(filters)
+    if sort:
+        cursor = cursor.sort(sort)
+    if limit:
+        cursor = cursor.limit(limit)
+    return list(cursor)
