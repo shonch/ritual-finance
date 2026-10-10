@@ -18,6 +18,7 @@ from .health_router import router as health_router
 from .glen_router import router as glen_router
 from .setup_router import router as setup_router
 from .hoard_router import router as hoard_router
+from .ragnarok_router import router as ragnarok_router
 # Include them into the unified router
 router.include_router(valhalla_tags_router)
 router.include_router(health_router)
@@ -32,3 +33,4 @@ router.include_router(rituals_router)
 router.include_router(glen_router)
 router.include_router(setup_router)
 router.include_router(hoard_router) 
+router.include_router(ragnarok_router)

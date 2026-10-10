@@ -6,13 +6,20 @@ from fastapi.security import OAuth2PasswordBearer
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from typing import Optional
+from pydantic import BaseModel
 
 
-from emotional_budget_tracker.models.transaction import log_transaction_from_api
+from emotional_budget_tracker.models.transaction import (
+    log_transaction_from_api,
+    mark_transaction_posted,
+    delete_transaction,
+    edit_scheduled_transaction,
+    TransactionError,
+)
 from emotional_budget_tracker.utils.mongo_client import select_rows
-from emotional_budget_tracker.models.transaction import log_transaction_from_api, mark_transaction_posted
 from emotional_budget_tracker.schemas import TransactionCreate, TransactionOut
-from emotional_budget_tracker.models.transaction import log_transaction_from_api, mark_transaction_posted, delete_transaction
+
 # --- Environment ---
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")  # must match Phoenix
@@ -23,7 +30,12 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # --- Router ---
 router = APIRouter(prefix="/transactions", tags=["transactions"])
-
+class TransactionEdit(BaseModel):
+    amount: Optional[float] = None
+    date: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    source: Optional[str] = None
 # --- JWT verification ---
 def verify_jwt(token: str = Depends(oauth2_scheme)) -> str:
     try:
@@ -91,12 +103,31 @@ def view_transactions(
 @router.patch("/{transaction_id}/mark-posted", summary="Mark a foretold transaction as landed")
 def mark_posted(
     transaction_id: str,
-    actual_date: str = Query(None, description="Optional: correct the date if it landed on a different day than scheduled"),
+    actual_date: str = Query(None, description="Optional: the day it actually landed (not in the future)"),
     user_id: str = Depends(verify_jwt),
 ):
-    return mark_transaction_posted(user_id, transaction_id, actual_date)
+    try:
+        return mark_transaction_posted(user_id, transaction_id, actual_date)
+    except TransactionError as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
 
 
-@router.delete("/{transaction_id}", summary="Permanently delete a transaction")
+@router.patch("/{transaction_id}", summary="Edit a foretold (scheduled) transaction")
+def edit_transaction_route(
+    transaction_id: str,
+    changes: TransactionEdit,
+    user_id: str = Depends(verify_jwt),
+):
+    try:
+        return edit_scheduled_transaction(
+            user_id, transaction_id, changes.dict(exclude_unset=True)
+        )
+    except TransactionError as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+
+@router.delete("/{transaction_id}", summary="Delete a foretold (scheduled) transaction")
 def delete_transaction_route(transaction_id: str, user_id: str = Depends(verify_jwt)):
-    return delete_transaction(user_id, transaction_id)
+    try:
+        return delete_transaction(user_id, transaction_id)
+    except TransactionError as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
