@@ -166,17 +166,19 @@ def list_burdens(user_id: str = Depends(verify_jwt)):
             "recurrence": item.get("recurrence"),
             "is_one_time": item.get("is_one_time", False),
             "due_date": item.get("due_date"),
+            "start_date": item.get("start_date"),
+            "end_date": item.get("end_date"),
             "overdue": overdue,
             "payments_remaining": item.get("payments_remaining"),
             "total_payments": item.get("total_payments"),
             "current_balance": item.get("current_balance"),
             "archetype": item.get("archetype"),
             "symbolic_tag": item.get("symbolic_tag"),
+            "symbolic_time": item.get("symbolic_time"),
         })
 
     burdens.sort(key=lambda b: b["due_date"] or "9999-12-31")
     return {"burdens": burdens}
-
 
 @router.post("/mark-agreed")
 def mark_agreed(user_id: str = Depends(verify_jwt)):
@@ -198,6 +200,113 @@ def pay_burden(setup_id: str, payload: dict, user_id: str = Depends(verify_jwt))
     if payment_amount is None:
         raise HTTPException(status_code=400, detail="Payment amount is required.")
     return apply_burden_payment(user_id, setup_id, payment_amount)
+
+
+@router.patch("/{setup_id}")
+def edit_setup_item(setup_id: str, payload: dict, user_id: str = Depends(verify_jwt)):
+    """
+    Partial edit of one Burden. Only fields present in the payload change.
+    Does not advance the schedule — only a payment does that.
+    """
+    from emotional_budget_tracker.utils.mongo_client import select_rows, update_row
+
+    items = select_rows("setup_items", {"setup_id": setup_id, "user_id": user_id, "active": True})
+    if not items:
+        raise HTTPException(status_code=404, detail="Burden not found.")
+    item = items[0]
+
+    updates = {}
+
+    if "name" in payload:
+        name = (payload.get("name") or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="A Burden needs a name.")
+        updates["name"] = name
+
+    if "plan_name" in payload:
+        updates["plan_name"] = (payload.get("plan_name") or "").strip() or None
+
+    if "category" in payload:
+        updates["category"] = payload.get("category")
+
+    if "amount" in payload:
+        try:
+            amount = float(payload.get("amount"))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Amount must be a number.")
+        if amount <= 0:
+            raise HTTPException(status_code=400, detail="Amount must be greater than zero.")
+        updates["amount"] = round(amount, 2)
+
+    recurrence = item.get("recurrence") or "none"
+    if "recurrence" in payload:
+        recurrence = (payload.get("recurrence") or "none").lower()
+        if recurrence not in VALID_RECURRENCES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Recurrence must be one of: {', '.join(sorted(VALID_RECURRENCES))}.",
+            )
+        updates["recurrence"] = recurrence
+        updates["is_one_time"] = recurrence == "none"
+        updates["frequency"] = "one-time" if recurrence == "none" else recurrence
+
+    if "due_date" in payload:
+        updates["due_date"] = _parse_date(payload.get("due_date"), "due_date", required=True)
+    if "start_date" in payload:
+        updates["start_date"] = _parse_date(payload.get("start_date"), "start_date")
+    if "end_date" in payload:
+        updates["end_date"] = _parse_date(payload.get("end_date"), "end_date")
+
+    # Payment countdown
+    counts_in_payload = "total_payments" in payload or "payments_remaining" in payload
+    if recurrence == "none":
+        # A one-time Burden is a single occurrence; it never carries a count.
+        if counts_in_payload or "recurrence" in payload:
+            updates["total_payments"] = None
+            updates["payments_remaining"] = None
+    elif counts_in_payload:
+        total = item.get("total_payments")
+        remaining = item.get("payments_remaining")
+        if "total_payments" in payload:
+            total = _parse_positive_int(payload.get("total_payments"), "total_payments")
+        if "payments_remaining" in payload:
+            remaining = _parse_positive_int(payload.get("payments_remaining"), "payments_remaining")
+        if remaining is not None and total is None:
+            total = remaining
+        elif total is not None and remaining is None and "payments_remaining" not in payload:
+            remaining = total
+        if remaining is not None and remaining > total:
+            raise HTTPException(status_code=400, detail="Payments remaining can't exceed total payments.")
+        updates["total_payments"] = total
+        updates["payments_remaining"] = remaining
+
+    if "current_balance" in payload:
+        value = payload.get("current_balance")
+        if value in (None, ""):
+            updates["current_balance"] = None
+        else:
+            try:
+                updates["current_balance"] = float(value)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Current balance must be a number.")
+
+    if "archetype" in payload:
+        updates["archetype"] = payload.get("archetype") or "Unassigned"
+    if "symbolic_tag" in payload:
+        updates["symbolic_tag"] = payload.get("symbolic_tag") or "Untitled"
+    if "symbolic_time" in payload:
+        updates["symbolic_time"] = payload.get("symbolic_time") or None
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nothing to change.")
+
+    update_row("setup_items", {"setup_id": setup_id, "user_id": user_id}, updates)
+
+    return {
+        "message": f"'{updates.get('name', item.get('name'))}' updated.",
+        "setup_id": setup_id,
+        "updated_fields": sorted(updates.keys()),
+    }
 
 
 @router.delete("/{setup_id}")
