@@ -4,6 +4,7 @@ from bson import ObjectId
 from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
 import os
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import Optional
@@ -17,7 +18,7 @@ from emotional_budget_tracker.models.transaction import (
     edit_scheduled_transaction,
     TransactionError,
 )
-from emotional_budget_tracker.utils.mongo_client import select_rows
+from emotional_budget_tracker.utils.mongo_client import select_rows, count_rows
 from emotional_budget_tracker.schemas import TransactionCreate, TransactionOut
 
 # --- Environment ---
@@ -63,7 +64,16 @@ def last_entry_date(user_id: str = Depends(verify_jwt)):
     return {"last_date": results[0]["date"] if results else None}
 
 
-@router.get("/", summary="View transactions with filters")
+TRANSACTION_SORTS = {
+    "date_desc": [("date", -1), ("_id", -1)],
+    "date_asc": [("date", 1), ("_id", 1)],
+    "amount_desc": [("amount", -1), ("date", -1), ("_id", -1)],
+    "amount_asc": [("amount", 1), ("date", -1), ("_id", -1)],
+}
+TRANSACTION_SEARCH_FIELDS = ("category", "source", "description", "tags")
+
+
+@router.get("/", summary="View transactions with filters, search, sorting and paging")
 def view_transactions(
     user_id: str = Depends(verify_jwt),
     category: str = Query(None),
@@ -72,13 +82,30 @@ def view_transactions(
     end_date: str = Query(None),
     min_amount: float = Query(None),
     max_amount: float = Query(None),
+    q: str = Query(None, description="Search words; every word must appear in category, source, description or tags"),
+    tx_type: str = Query(None, alias="type", description="income, expense or adjustment"),
+    status: str = Query(None, description="scheduled or posted"),
+    sort: str = Query("date_desc", description="date_desc, date_asc, amount_desc or amount_asc"),
+    limit: int = Query(None, ge=1, le=500, description="Page size; omit to return everything"),
+    skip: int = Query(0, ge=0),
+    slim: bool = Query(False, description="Leave out the long 'content' field"),
 ):
+    if sort not in TRANSACTION_SORTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"sort must be one of: {', '.join(TRANSACTION_SORTS)}",
+        )
+
     query = {"user_id": user_id}
 
     if category:
-        query["category"] = {"$regex": f"^{category.strip()}$", "$options": "i"}
+        query["category"] = {"$regex": f"^{re.escape(category.strip())}$", "$options": "i"}
     if mode:
-        query["mode"] = {"$regex": f"^{mode.strip()}$", "$options": "i"}
+        query["mode"] = {"$regex": f"^{re.escape(mode.strip())}$", "$options": "i"}
+    if tx_type:
+        query["type"] = tx_type.strip().lower()
+    if status:
+        query["status"] = status.strip().lower()
     if start_date or end_date:
         query["date"] = {}
         if start_date:
@@ -92,13 +119,39 @@ def view_transactions(
         if max_amount is not None:
             query["amount"]["$lte"] = max_amount
 
-    transactions = select_rows("transactions", query)
+    terms = (q or "").split()
+    if terms:
+        query["$and"] = [
+            {
+                "$or": [
+                    {field: {"$regex": re.escape(term), "$options": "i"}}
+                    for field in TRANSACTION_SEARCH_FIELDS
+                ]
+            }
+            for term in terms
+        ]
+
+    total = count_rows("transactions", query)
+    transactions = select_rows(
+        "transactions",
+        query,
+        sort=TRANSACTION_SORTS[sort],
+        limit=limit,
+        skip=skip or None,
+        projection={"content": 0} if slim else None,
+    )
 
     for t in transactions:
         if "_id" in t and isinstance(t["_id"], ObjectId):
             t["_id"] = str(t["_id"])
 
-    return {"transactions": transactions or []}
+    return {
+        "transactions": transactions or [],
+        "total": total,
+        "limit": limit,
+        "skip": skip,
+    }
+
 
 @router.patch("/{transaction_id}/mark-posted", summary="Mark a foretold transaction as landed")
 def mark_posted(
